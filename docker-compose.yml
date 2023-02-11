@@ -141,9 +141,11 @@ services:
       - "--providers.docker=true"
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - ./traefik/traefik.yml:/traefik.yml:ro
+      - "./traefik/letsencrypt:/home/letsencrypt"
       - ./traefik/.htpasswd:/.htpasswd
       - "${EB_LOG_BASE_DIR:-./traefik}/traefik-proxy:/logs"
     labels:
@@ -163,8 +165,8 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.svelte_local.entrypoints=web"
       - "traefik.http.routers.svelte_local.rule=Host(`sveltekit.${LOCAL_1}`, `sveltekit.${LOCAL_2}`, `sveltekit.${EXT_ENDPOINT1}`)"
-      # - "traefik.http.routers.node-server.tls.certresolver=myresolver"
-      # - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-      # - "traefik.http.routers.redirs.rule=hostregexp(`{host:.+}`)"
-      # - "traefik.http.routers.redirs.entrypoints=web"
-      # - "traefik.http.routers.redirs.middlewares=redirect-to-https"
+      - "traefik.http.routers.node-server.tls.certresolver=myresolver"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.routers.redirs.rule=hostregexp(`{host:.+}`)"
+      - "traefik.http.routers.redirs.entrypoints=web"
+      - "traefik.http.routers.redirs.middlewares=redirect-to-https"
