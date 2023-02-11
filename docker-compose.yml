@@ -12,7 +12,7 @@ services:
       - 8000
     env_file: ".env"
     depends_on:
-      - database
+      - postgres
     links:
       - traefik-proxy:storage.localhost
     labels:
@@ -22,11 +22,11 @@ services:
       - "traefik.http.routers.fastapi_local_base.entrypoints=web"
       - "traefik.http.routers.fastapi_local_base.rule=Host(`${LOCAL_1}`, `${LOCAL_2}`, `${EXT_ENDPOINT1}`)"
       - traefik.http.services.fastapi_localservice.loadbalancer.server.port=8000
-  
-  database:
+
+  postgres:
     image: bitnami/postgresql:13.3.0
     restart: always
-    container_name: database
+    container_name: postgres
     env_file: ".env"
     user: root
     volumes:
@@ -39,7 +39,48 @@ services:
       - POSTGRES_DATABASE=${DATABASE_NAME}
       - POSTGRES_HOST_AUTH_METHOD= "trust"
       - POSTGRESQL_POSTGRES_PASSWORD= ${DATABASE_PASSWORD}
-      
+
+  mariadb:
+    image: mariadb:latest
+    restart: always
+    container_name: mariadb
+    env_file: ".env"
+    volumes:
+      - ./mariadb/data:/var/lib/mysql/data
+      - ./mariadb/logs:/var/lib/mysql/logs
+    expose:
+      - 3306
+    environment:
+      - MYSQL_USER=${DATABASE_USER}
+      - MYSQL_PASSWORD=${DATABASE_PASSWORD}
+      - MYSQL_DATABASE=${DATABASE_NAME}
+      - MYSQL_ROOT_PASSWORD=${DATABASE_PASSWORD}
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    restart: always
+    container_name: phpmyadmin
+    # ports:
+    #   - 8090:80
+    expose:
+      - 8090
+    depends_on:
+      - mariadb
+    environment:
+      - PMA_HOST=mariadb
+      - PMA_PORT=3306
+      - PMA_ARBITRARY=1
+      - MYSQL_ROOT_PASSWORD=${DATABASE_PASSWORD}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.phpmyadmin_local.entrypoints=web"
+      - "traefik.http.routers.phpmyadmin_local.rule=Host(`phpmyadmin.${LOCAL_1}`, `phpmyadmin.${LOCAL_2}`, `phpmyadmin.${EXT_ENDPOINT1}`)"
+      # - traefik.http.services.phpmyadmin_local_service.loadbalancer.server.port=8090
+
+  # php_fpm 7.4, 8.0, 8.1, 8.2 etc
+  # node_server
+  #   svelte, sveltekit, learn.svelte, nestjs etc
+
   redis_server:
     container_name: redis_server
     image: "redis:alpine"
@@ -80,16 +121,16 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_BROWSER_REDIRECT_URL: http://stash.localhost
-    command: "server /data --console-address ':9090'"    
+    command: "server /data --console-address ':9090'"
     labels:
       - traefik.enable=true
       - traefik.http.routers.minio.entrypoints=web
       - traefik.http.routers.minio.service=minio
-      - traefik.http.routers.minio.rule=Host(`storage.${LOCAL_1}`, `storage.${LOCAL_2}`, `storage.${EXT_ENDPOINT1}`)      
+      - traefik.http.routers.minio.rule=Host(`storage.${LOCAL_1}`, `storage.${LOCAL_2}`, `storage.${EXT_ENDPOINT1}`)
       - traefik.http.services.minio.loadbalancer.server.port=9000
       - traefik.http.routers.minio-console.entrypoints=web
       - traefik.http.routers.minio-console.service=minio-console
-      - traefik.http.routers.minio-console.rule=Host(`stash.${LOCAL_1}`, `stash.${LOCAL_2}`, `stash.${EXT_ENDPOINT1}`)      
+      - traefik.http.routers.minio-console.rule=Host(`stash.${LOCAL_1}`, `stash.${LOCAL_2}`, `stash.${EXT_ENDPOINT1}`)
       - traefik.http.services.minio-console.loadbalancer.server.port=9090
 
   traefik-proxy:
@@ -111,3 +152,19 @@ services:
       - "traefik.http.routers.dashboard.service=api@internal"
       - "traefik.http.routers.dashboard.middlewares=auth"
       - "traefik.http.middlewares.auth.basicauth.usersfile=/.htpasswd"
+  sveltekit:
+    container_name: sveltekit
+    restart: always
+    build:
+      context: ./svelte/kit
+      dockerfile: Dockerfile
+    # command: "sh -c 'npm install && npm run dev'"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.svelte_local.entrypoints=web"
+      - "traefik.http.routers.svelte_local.rule=Host(`sveltekit.${LOCAL_1}`, `sveltekit.${LOCAL_2}`, `sveltekit.${EXT_ENDPOINT1}`)"
+      # - "traefik.http.routers.node-server.tls.certresolver=myresolver"
+      # - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      # - "traefik.http.routers.redirs.rule=hostregexp(`{host:.+}`)"
+      # - "traefik.http.routers.redirs.entrypoints=web"
+      # - "traefik.http.routers.redirs.middlewares=redirect-to-https"

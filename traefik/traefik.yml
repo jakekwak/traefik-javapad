@@ -9,7 +9,7 @@ entryPoints:
 
   websecure:
     address: :443
-    
+
 # Providers
 providers:
   docker:
@@ -19,6 +19,18 @@ providers:
 log:
   filePath: "/traefik/logs/traefik.log"
   format: json
+  level: DEBUG
 
 accessLog:
   filePath: "/traefik/logs/access.log"
+
+# certificatesResolvers:
+#   http:
+#     acme:
+#       email: name@gmail.com
+#       storage: acme.json
+#       httpChallenge:
+#         entryPoint: http
+
+# serversTransport:
+#   insecureSkipVerify: true
